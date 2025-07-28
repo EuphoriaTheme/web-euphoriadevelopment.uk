@@ -39,6 +39,10 @@ async function loadProducts() {
             // Add type badge
             const typeBadge = product.type === 'THEME' ? '🎨' : '🔧';
             
+            // Get active panels count
+            const activePanels = product.stats.panels || 0;
+            const panelsDisplay = activePanels.toLocaleString();
+            
             // Get platform URLs
             const builtByBitUrl = product.platforms.BUILTBYBIT?.url;
             const sourceXchangeUrl = product.platforms.SOURCEXCHANGE?.url;
@@ -46,12 +50,12 @@ async function loadProducts() {
             // Create buttons HTML
             let buttonsHtml = '';
             if (builtByBitUrl || sourceXchangeUrl) {
-                buttonsHtml = '<div class="mt-4 flex gap-2 justify-center">';
+                buttonsHtml = '<div class="mt-3 flex flex-col sm:flex-row gap-2 justify-center">';
                 
                 if (sourceXchangeUrl) {
                     buttonsHtml += `
                         <button onclick="window.open('${sourceXchangeUrl}', '_blank')" 
-                                class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded transition-colors">
+                                class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded transition-colors flex-1 sm:flex-none">
                             SourceXchange
                         </button>`;
                 }
@@ -59,7 +63,7 @@ async function loadProducts() {
                 if (builtByBitUrl) {
                     buttonsHtml += `
                         <button onclick="window.open('${builtByBitUrl}', '_blank')" 
-                                class="px-3 py-1.5 bg-blue-400 hover:bg-blue-600 text-white text-xs rounded transition-colors">
+                                class="px-3 py-1.5 bg-blue-400 hover:bg-blue-600 text-white text-xs rounded transition-colors flex-1 sm:flex-none">
                             BuiltByBit
                         </button>`;
                 }
@@ -72,12 +76,20 @@ async function loadProducts() {
                      alt="${product.name}" 
                      class="w-full h-32 object-cover"
                      onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(product.name)}&background=3b82f6&color=fff&size=400x200'">
-                <div class="p-6">
+                <div class="p-4 sm:p-6">
                     <h3 class="font-semibold text-lg mb-2 text-neutral-200">${product.name}</h3>
-                    <p class="text-neutral-400 text-sm mb-3">${product.summary}</p>
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs px-2 py-1 bg-neutral-800 rounded">${typeBadge} ${product.type}</span>
-                        <span class="${priceColor} font-bold">${priceDisplay}</span>
+                    <p class="text-neutral-400 text-sm mb-3 line-clamp-2">${product.summary}</p>
+                    <div class="flex flex-col gap-2 mb-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs px-2 py-1 bg-neutral-800 rounded flex items-center gap-1">
+                                ${typeBadge} ${product.type}
+                            </span>
+                            <span class="${priceColor} font-bold text-sm">${priceDisplay}</span>
+                        </div>
+                        <div class="flex items-center gap-1 text-xs text-neutral-400">
+                            <span class="text-blue-400">⚡</span>
+                            <span>${panelsDisplay} active panels</span>
+                        </div>
                     </div>
                     ${buttonsHtml}
                 </div>
