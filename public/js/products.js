@@ -1,8 +1,13 @@
-// Fetch and display Blueprint addons and themes from Euphoria Development API.
+// Fetch and display Blueprint addons and themes from Euphoria Development API,
+// and attach GitHub repo links from the EuphoriaTheme org where possible.
 (() => {
   const STATS_URL = 'https://api.euphoriadevelopment.uk/stats/';
   const CACHE_KEY = 'blueprintProductsCache:v2';
   const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+  const GITHUB_ORG = 'EuphoriaTheme';
+  const GITHUB_CACHE_KEY = 'blueprintGithubReposCache:v2';
+  const GITHUB_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
   const PLATFORM_PRIORITY = ['BUILTBYBIT', 'SOURCEXCHANGE'];
 
@@ -33,6 +38,36 @@
   function escapeAttr(input) {
     // Keep it simple; we only use this for attributes like src/href/alt.
     return escapeHtml(input);
+  }
+
+  function normalizeRepoKey(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  function extractRepoKeyFromGithubUrl(url) {
+    const href = safeUrl(url);
+    if (!href) return null;
+
+    try {
+      const u = new URL(href);
+      if (u.hostname !== 'github.com') return null;
+
+      const parts = u.pathname.split('/').filter(Boolean);
+      const owner = parts[0] || '';
+      const repo = parts[1] || '';
+
+      if (!owner || !repo) return null;
+      if (String(owner).toLowerCase() !== String(GITHUB_ORG).toLowerCase()) return null;
+
+      return normalizeRepoKey(repo);
+    } catch {
+      return null;
+    }
   }
 
   function getGridColumnCount(grid) {
@@ -177,6 +212,27 @@
     }
   }
 
+  function loadGithubCache() {
+    try {
+      const raw = localStorage.getItem(GITHUB_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.ts || !Array.isArray(parsed.items)) return null;
+      if (Date.now() - parsed.ts > GITHUB_CACHE_TTL_MS) return null;
+      return parsed.items;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveGithubCache(items) {
+    try {
+      localStorage.setItem(GITHUB_CACHE_KEY, JSON.stringify({ ts: Date.now(), items }));
+    } catch {
+      // ignore storage failures (private mode, disabled storage, etc.)
+    }
+  }
+
   function setCount(id, count) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -212,6 +268,109 @@
       currency,
       url,
     };
+  }
+
+  function buildRepoIndex(repos) {
+    const list = Array.isArray(repos) ? repos : [];
+    const map = new Map();
+
+    list.forEach((repo) => {
+      if (!repo || repo.archived || repo.fork) return;
+      const key = normalizeRepoKey(repo.name);
+      if (!key) return;
+      if (!repo.html_url) return;
+      map.set(key, repo);
+    });
+
+    return map;
+  }
+
+  function repoCandidatesForProduct(product) {
+    const candidates = [];
+    const name = product && product.name ? String(product.name) : '';
+    const identifier = product && product.identifier ? String(product.identifier) : '';
+    const type = normalizeType(product && product.type);
+
+    if (name) {
+      candidates.push(normalizeRepoKey(name));
+      if (type === 'theme') {
+        candidates.push(normalizeRepoKey(`${name}-Theme`));
+        candidates.push(normalizeRepoKey(`${name} Theme`));
+      }
+    }
+
+    if (identifier) candidates.push(normalizeRepoKey(identifier));
+
+    return Array.from(new Set(candidates)).filter(Boolean);
+  }
+
+  function inferGithubRepo(product, repoIndex) {
+    if (!repoIndex || typeof repoIndex.get !== 'function') return null;
+    const keys = repoCandidatesForProduct(product);
+    for (const key of keys) {
+      const repo = repoIndex.get(key);
+      if (repo && repo.html_url) return repo;
+    }
+    return null;
+  }
+
+  function attachGithubLinks(products, repos) {
+    const list = Array.isArray(products) ? products : [];
+    const repoIndex = buildRepoIndex(repos);
+
+    return list.map((p) => {
+      const explicit = safeUrl(p && p.platforms && p.platforms.GITHUB && p.platforms.GITHUB.url);
+
+      let repo = null;
+      if (explicit) {
+        const keyFromUrl = extractRepoKeyFromGithubUrl(explicit);
+        if (keyFromUrl) repo = repoIndex.get(keyFromUrl) || null;
+      }
+      if (!repo) repo = inferGithubRepo(p, repoIndex);
+
+      const inferredUrl = (repo && repo.html_url) || null;
+      const githubUrl = explicit || inferredUrl || null;
+
+      const stars = repo && typeof repo.stargazers_count === 'number' ? repo.stargazers_count : null;
+      const forks = repo && typeof repo.forks_count === 'number' ? repo.forks_count : null;
+
+      return {
+        ...(p || {}),
+        githubUrl,
+        githubStars: stars,
+        githubForks: forks,
+      };
+    });
+  }
+
+  async function fetchGithubRepos() {
+    const url = `https://api.github.com/orgs/${encodeURIComponent(GITHUB_ORG)}/repos?per_page=100&sort=updated`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+      },
+    });
+
+    if (!res.ok) {
+      const remaining = res.headers.get('x-ratelimit-remaining');
+      if (res.status === 403 && remaining === '0') {
+        throw new Error('GitHub rate limit exceeded. Please try again later.');
+      }
+      throw new Error(`GitHub request failed (${res.status}).`);
+    }
+
+    const repos = await res.json();
+    const list = Array.isArray(repos) ? repos : [];
+
+    // Keep only the fields we need for matching and linking.
+    return list.map((repo) => ({
+      name: repo && repo.name,
+      html_url: repo && repo.html_url,
+      archived: Boolean(repo && repo.archived),
+      fork: Boolean(repo && repo.fork),
+      stargazers_count: typeof (repo && repo.stargazers_count) === 'number' ? repo.stargazers_count : 0,
+      forks_count: typeof (repo && repo.forks_count) === 'number' ? repo.forks_count : 0,
+    }));
   }
 
   function isFree(platforms) {
@@ -332,6 +491,19 @@
     const sxUrl =
       safeUrl(product && product.platforms && product.platforms.SOURCEXCHANGE && product.platforms.SOURCEXCHANGE.url) ||
       null;
+    const ghUrl =
+      safeUrl(
+        product &&
+          (product.githubUrl ||
+            (product.platforms && product.platforms.GITHUB && product.platforms.GITHUB.url)),
+      ) || null;
+
+    const ghStarsRaw = product && Object.prototype.hasOwnProperty.call(product, 'githubStars') ? product.githubStars : null;
+    const ghForksRaw = product && Object.prototype.hasOwnProperty.call(product, 'githubForks') ? product.githubForks : null;
+    const ghStarsNum = ghStarsRaw === null || ghStarsRaw === undefined ? null : Number(ghStarsRaw);
+    const ghForksNum = ghForksRaw === null || ghForksRaw === undefined ? null : Number(ghForksRaw);
+    const ghStarsDisplay = ghStarsNum !== null && Number.isFinite(ghStarsNum) ? ghStarsNum.toLocaleString() : null;
+    const ghForksDisplay = ghForksNum !== null && Number.isFinite(ghForksNum) ? ghForksNum.toLocaleString() : null;
 
     const panels = Number(product && product.stats && product.stats.panels) || 0;
     const panelsDisplay = panels.toLocaleString();
@@ -351,6 +523,14 @@
         href: blueprintUrl,
         className:
           'inline-flex items-center justify-center px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors',
+      });
+    }
+    if (ghUrl) {
+      buttons.push({
+        label: 'View on GitHub',
+        href: ghUrl,
+        className:
+          'inline-flex items-center justify-center px-3 py-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-100 text-sm font-semibold transition-colors border border-neutral-700',
       });
     }
     if (bbbUrl) {
@@ -401,6 +581,20 @@
         <span class="px-2 py-1 rounded bg-neutral-800/60 border border-neutral-700">${escapeHtml(
           panelsDisplay,
         )} active panels</span>
+        ${
+          ghUrl && ghStarsDisplay !== null
+            ? `<span class="px-2 py-1 rounded bg-neutral-800/60 border border-neutral-700">${escapeHtml(
+                ghStarsDisplay,
+              )} stars</span>`
+            : ''
+        }
+        ${
+          ghUrl && ghForksDisplay !== null
+            ? `<span class="px-2 py-1 rounded bg-neutral-800/60 border border-neutral-700">${escapeHtml(
+                ghForksDisplay,
+              )} forks</span>`
+            : ''
+        }
         ${
           latestLabel
             ? `<span class="px-2 py-1 rounded bg-neutral-800/60 border border-neutral-700">Latest ${escapeHtml(
@@ -522,22 +716,38 @@
 
     // Render cached content immediately (if available), then refresh in background.
     const cached = loadCache();
-    if (cached && cached.length) renderAll(cached);
+    const cachedRepos = loadGithubCache();
+    if (cached && cached.length) renderAll(attachGithubLinks(cached, cachedRepos));
 
-    try {
-      const items = await fetchProducts();
+    const [productsResult, reposResult] = await Promise.allSettled([fetchProducts(), fetchGithubRepos()]);
+
+    const freshRepos = reposResult.status === 'fulfilled' ? reposResult.value : null;
+    const reposForLinks = (freshRepos && freshRepos.length ? freshRepos : cachedRepos) || null;
+    if (freshRepos && freshRepos.length) saveGithubCache(freshRepos);
+
+    if (productsResult.status === 'fulfilled') {
+      const items = productsResult.value;
       if (!items.length) {
+        // If cache rendered, avoid replacing it with an error.
+        if (cached && cached.length) return;
         renderError('No Blueprint products found yet.');
         return;
       }
 
       saveCache(items);
-      renderAll(items);
-    } catch (err) {
-      // If cache rendered, avoid replacing it with an error.
-      if (cached && cached.length) return;
-      renderError(err instanceof Error ? err.message : 'Unable to load products at this time.');
+      renderAll(attachGithubLinks(items, reposForLinks));
+      return;
     }
+
+    // Products fetch failed.
+    // If cache rendered, keep it, but if GitHub repos loaded successfully re-render cache to attach links.
+    if (cached && cached.length) {
+      if (freshRepos && freshRepos.length) renderAll(attachGithubLinks(cached, reposForLinks));
+      return;
+    }
+
+    const err = productsResult.reason;
+    renderError(err instanceof Error ? err.message : 'Unable to load products at this time.');
   }
 
   document.addEventListener('DOMContentLoaded', loadBlueprintProducts);
