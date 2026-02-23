@@ -1,0 +1,107 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Web apps and tools by Euphoria Development.">
+  <title>Web Apps | Euphoria Docs</title>
+  <link rel="icon" type="image/x-icon" href="/public/images/euphoria.ico">
+  <link rel="stylesheet" href="/public/css/docs.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body class="docs-page">
+  <header class="docs-topbar">
+    <div class="docs-topbar-inner">
+      <a class="docs-brand" href="/docs/"><img src="/public/images/euphoria.png" alt="Euphoria Development"><span>Euphoria Development Docs</span></a>
+      <nav class="docs-nav"><a href="/docs/">Home</a><a class="active" href="/docs/community/web-apps.html">Web Apps</a><a href="/index.html">Main Site</a></nav>
+    </div>
+  </header>
+
+  <main class="docs-shell">
+    <section class="docs-layout">
+      <aside class="docs-sidebar">
+        <h2>Community</h2>
+        <nav><a class="active" href="/docs/community/web-apps.html">Web Apps</a><a href="/docs/community/blueprint-addons.html">Blueprint Addons</a><a href="/docs/community/refresh-theme.html">Refresh Theme</a><a href="/docs/community/endstone-plugins.html">Endstone Plugins</a></nav>
+      </aside>
+
+      <div class="docs-content panel-grid">
+        <article class="panel">
+          <h2><i class="fa-solid fa-globe" aria-hidden="true"></i> Web Applications</h2>
+          <p>This page tracks the web apps and tools currently listed on the main site.</p>
+          <div class="callout"><p>Projects may be paid or open-source. Open-source entries below show live GitHub metadata, including stars and fork counts.</p></div>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-brands fa-github" aria-hidden="true"></i> Available Apps</h2>
+          <div class="doc-list">
+            <div class="doc-item">
+              <h3>Euphoria Paste (Paid)</h3>
+              <div class="doc-meta"><span><i class="fa-solid fa-tag" aria-hidden="true"></i> Paid</span><span><i class="fa-solid fa-paste" aria-hidden="true"></i> Paste Platform</span></div>
+              <div class="doc-actions"><a class="text-link" href="https://builtbybit.com/resources/euphoria-paste.57974/" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> View Paid Version</a></div>
+            </div>
+
+            <div class="doc-item">
+              <h3>Euphoria Paste (Open Source)</h3>
+              <div class="doc-meta" id="meta-euphoria-paste"><span><i class="fa-solid fa-code-branch" aria-hidden="true"></i> Forks: ...</span><span><i class="fa-solid fa-star" aria-hidden="true"></i> Stars: ...</span><span><i class="fa-solid fa-code" aria-hidden="true"></i> Language: ...</span></div>
+              <p>Open source fork of Haste, a pastebin written for Node.js.</p>
+              <div class="doc-actions"><a class="text-link" href="https://github.com/EuphoriaTheme/Euphoria-Paste" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-github" aria-hidden="true"></i> View on GitHub</a></div>
+            </div>
+
+            <div class="doc-item">
+              <h3>Eventer</h3>
+              <div class="doc-meta" id="meta-eventer"><span><i class="fa-solid fa-code-branch" aria-hidden="true"></i> Forks: ...</span><span><i class="fa-solid fa-star" aria-hidden="true"></i> Stars: ...</span><span><i class="fa-solid fa-code" aria-hidden="true"></i> Language: ...</span></div>
+              <p>Making scheduling easy.</p>
+              <div class="doc-actions"><a class="text-link" href="https://github.com/RepGraphics/eventer" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-github" aria-hidden="true"></i> View on GitHub</a></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="doc-actions"><a class="text-link" href="/docs/legal-and-terms/legal/terms-and-conditions.html">â† Previous: Terms &amp; Conditions</a><a class="text-link" href="/docs/community/blueprint-addons.html">Next: Blueprint Addons â†’</a></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="docs-footer"><div class="docs-footer-inner"><span>Â© Euphoria Development</span><nav><a href="/docs/">Docs Home</a><a href="/legal/terms-and-conditions.html">Site Terms</a><a href="/legal/privacy-policy.html">Privacy Policy</a></nav></div></footer>
+
+  <script>
+    (async () => {
+      const targets = [
+        { repo: 'EuphoriaTheme/Euphoria-Paste', el: document.getElementById('meta-euphoria-paste') },
+        { repo: 'RepGraphics/eventer', el: document.getElementById('meta-eventer') },
+      ];
+
+      const escapeHtml = (input) => String(input || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      for (const target of targets) {
+        if (!target.el) continue;
+        try {
+          const res = await fetch(`https://api.github.com/repos/${target.repo}`, {
+            headers: { Accept: 'application/vnd.github+json' },
+          });
+
+          if (!res.ok) throw new Error('GitHub request failed');
+
+          const repo = await res.json();
+          const forks = Number(repo.forks_count || 0).toLocaleString();
+          const stars = Number(repo.stargazers_count || 0).toLocaleString();
+          const language = repo.language ? escapeHtml(repo.language) : 'Unknown';
+
+          target.el.innerHTML = `<span><i class="fa-solid fa-code-branch" aria-hidden="true"></i> Forks: ${forks}</span><span><i class="fa-solid fa-star" aria-hidden="true"></i> Stars: ${stars}</span><span><i class="fa-solid fa-code" aria-hidden="true"></i> Language: ${language}</span>`;
+        } catch {
+          target.el.innerHTML = '<span><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Metadata unavailable right now</span>';
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
