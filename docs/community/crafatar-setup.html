@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Crafatar setup and deployment guide for hosted and self-hosted use.">
+  <title>Crafatar Setup | Euphoria Docs</title>
+  <link rel="icon" type="image/x-icon" href="/public/images/euphoria.ico">
+  <link rel="stylesheet" href="/public/css/docs.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body class="docs-page">
+  <header class="docs-topbar">
+    <div class="docs-topbar-inner">
+      <a class="docs-brand" href="/docs/"><img src="/public/images/euphoria.png" alt="Euphoria Development"><span>Euphoria Development Docs</span></a>
+      <nav class="docs-nav"><a href="/docs/">Home</a><a class="active" href="/docs/community/crafatar-setup.html">Crafatar Setup</a><a href="/index.html">Main Site</a></nav>
+    </div>
+  </header>
+
+  <main class="docs-shell">
+    <section class="docs-layout">
+      <aside class="docs-sidebar">
+        <h2>Community</h2>
+        <nav><a href="/docs/community/web-apps.html">Web Apps</a><a href="/docs/community/crafatar-api.html">Crafatar API</a><a class="active" href="/docs/community/crafatar-setup.html">Crafatar Setup</a><a href="/docs/community/blueprint-addons.html">Blueprint Addons</a><a href="/docs/community/refresh-theme.html">Refresh Theme</a><a href="/docs/community/endstone-plugins.html">Endstone Plugins</a></nav>
+      </aside>
+
+      <div class="docs-content panel-grid">
+        <article class="panel">
+          <h2><i class="fa-solid fa-rocket" aria-hidden="true"></i> Deployment Options</h2>
+          <ul>
+            <li><strong>Hosted:</strong> use <code>https://crafatar.euphoriadevelopment.uk</code> directly.</li>
+            <li><strong>Self-hosted:</strong> deploy your own Crafatar instance with Docker or Node.js + Redis.</li>
+          </ul>
+          <div class="callout"><p>For endpoint and parameter reference, use <a href="/docs/community/crafatar-api.html">Crafatar API Docs</a>.</p></div>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-brands fa-docker" aria-hidden="true"></i> Docker Quick Start (Awaiting Testing 23/02/2026)</h2>
+          <p>Recommended for production deployment.</p>
+          <pre><code>docker network create crafatar
+docker run --net crafatar -d --name redis redis
+docker run --net crafatar \
+  -v crafatar-images:/home/app/crafatar/images \
+  -e REDIS_URL=redis://redis \
+  -e EXTERNAL_URL=https://crafatar.example.com \
+  -p 3000:3000 \
+  ghcr.io/&lt;owner&gt;/&lt;repo&gt;:latest</code></pre>
+          <p>Service is then available at <code>http://0.0.0.0:3000</code> behind your proxy/domain.</p>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-terminal" aria-hidden="true"></i> Manual Setup</h2>
+          <ul>
+            <li>Install Node.js 24 LTS.</li>
+            <li>Install and run a Redis server.</li>
+            <li>Clone repository and install dependencies.</li>
+          </ul>
+          <pre><code>git clone https://github.com/EuphoriaTheme/crafatar.git
+cd crafatar
+npm install
+cp .env.example .env
+npm start</code></pre>
+          <p>If <code>node-canvas</code> fails to build, install system dependencies from the official node-canvas installation guide.</p>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-sliders" aria-hidden="true"></i> Required Configuration</h2>
+          <p>Set these in <code>.env</code>:</p>
+          <ul>
+            <li><code>REDIS_URL=redis://host:6379</code> (or <code>rediss://</code> for TLS).</li>
+            <li><code>PORT=3000</code>, <code>BIND=0.0.0.0</code>.</li>
+            <li><code>EXTERNAL_URL=https://crafatar.example.com</code> for canonical public URL in docs/examples.</li>
+            <li><code>CACHE_LOCAL=1200</code> and <code>CACHE_BROWSER=3600</code> control freshness and browser cache lifetime.</li>
+            <li><code>RETENTION_ENABLED=true</code>, <code>RETENTION_DAYS=30</code>, <code>RETENTION_INTERVAL_HOURS=24</code> for cleanup.</li>
+          </ul>
+          <div class="callout"><p><code>REDIS_URL</code> must use <code>redis://</code> or <code>rediss://</code>. Invalid protocol disables Redis caching at startup.</p></div>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-network-wired" aria-hidden="true"></i> Reverse Proxy Example (NGINX)</h2>
+          <pre><code>server {
+  listen 443 ssl http2;
+  server_name crafatar.example.com;
+
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}</code></pre>
+          <p>Crafatar reads forwarded headers to build correct external URLs when <code>EXTERNAL_URL</code> is not set.</p>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-wrench" aria-hidden="true"></i> Validation and Troubleshooting</h2>
+          <h3>Basic checks</h3>
+          <pre><code>curl -I "http://127.0.0.1:3000/avatars/069a79f444e94726a5befca90e38aaf5?size=64"
+curl -I "http://127.0.0.1:3000/renders/head/069a79f444e94726a5befca90e38aaf5?scale=4"</code></pre>
+          <ul>
+            <li>Expect <code>200</code> and <code>image/png</code> for valid requests.</li>
+            <li>Expect <code>422</code> for invalid UUID/size/scale/default values.</li>
+            <li>If response is slow, verify Redis connectivity and upstream egress to Mojang services.</li>
+            <li>If skins do not refresh, lower <code>CACHE_LOCAL</code> or clear image cache/Redis keys.</li>
+            <li>If storage fills up, tune retention and monitor inode usage.</li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <div class="doc-actions"><a class="text-link" href="/docs/community/crafatar-api.html"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Crafatar API</a><a class="text-link" href="/docs/community/blueprint-addons.html">Blueprint Addons <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="docs-footer"><div class="docs-footer-inner"><span>&copy; Euphoria Development</span><nav><a href="/docs/">Docs Home</a><a href="/legal/terms-and-conditions.html">Site Terms</a><a href="/legal/privacy-policy.html">Privacy Policy</a></nav></div></footer>
+</body>
+</html>

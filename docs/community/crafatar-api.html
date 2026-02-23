@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Crafatar API endpoints, parameters, headers, and response behavior.">
+  <title>Crafatar API | Euphoria Docs</title>
+  <link rel="icon" type="image/x-icon" href="/public/images/euphoria.ico">
+  <link rel="stylesheet" href="/public/css/docs.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+</head>
+<body class="docs-page">
+  <header class="docs-topbar">
+    <div class="docs-topbar-inner">
+      <a class="docs-brand" href="/docs/"><img src="/public/images/euphoria.png" alt="Euphoria Development"><span>Euphoria Development Docs</span></a>
+      <nav class="docs-nav"><a href="/docs/">Home</a><a class="active" href="/docs/community/crafatar-api.html">Crafatar API</a><a href="/index.html">Main Site</a></nav>
+    </div>
+  </header>
+
+  <main class="docs-shell">
+    <section class="docs-layout">
+      <aside class="docs-sidebar">
+        <h2>Community</h2>
+        <nav><a href="/docs/community/web-apps.html">Web Apps</a><a class="active" href="/docs/community/crafatar-api.html">Crafatar API</a><a href="/docs/community/crafatar-setup.html">Crafatar Setup</a><a href="/docs/community/blueprint-addons.html">Blueprint Addons</a><a href="/docs/community/refresh-theme.html">Refresh Theme</a><a href="/docs/community/endstone-plugins.html">Endstone Plugins</a></nav>
+      </aside>
+
+      <div class="docs-content panel-grid">
+        <article class="panel">
+          <h2><i class="fa-solid fa-book" aria-hidden="true"></i> API Overview</h2>
+          <p>Crafatar serves Minecraft avatars, skins, capes, and renders as PNG images using UUID-based routes.</p>
+          <p>Hosted base URL: <code>https://crafatar.euphoriadevelopment.uk</code></p>
+          <p>Supported methods: <code>GET</code> and <code>HEAD</code>.</p>
+          <div class="callout"><p>Only UUIDs are supported. Usernames are rejected.</p></div>
+          <div class="doc-actions"><a class="text-link" href="https://crafatar.euphoriadevelopment.uk/" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Open Crafatar</a><a class="text-link" href="https://github.com/EuphoriaTheme/crafatar" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-github" aria-hidden="true"></i> Source Repository</a></div>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-route" aria-hidden="true"></i> Endpoints</h2>
+          <ul>
+            <li><strong>Avatar:</strong> <code>/avatars/{uuid}</code> (query: <code>size</code>, <code>overlay</code>/<code>helm</code>, <code>default</code>)</li>
+            <li><strong>Head render:</strong> <code>/renders/head/{uuid}</code> (query: <code>scale</code>, <code>overlay</code>/<code>helm</code>, <code>default</code>)</li>
+            <li><strong>Body render:</strong> <code>/renders/body/{uuid}</code> (query: <code>scale</code>, <code>overlay</code>/<code>helm</code>, <code>default</code>)</li>
+            <li><strong>Skin:</strong> <code>/skins/{uuid}</code> (query: <code>default</code>)</li>
+            <li><strong>Cape:</strong> <code>/capes/{uuid}</code> (query: <code>default</code>)</li>
+          </ul>
+          <p>You can append file extensions like <code>.png</code> to path IDs. Output remains PNG.</p>
+          <pre><code>GET https://crafatar.euphoriadevelopment.uk/avatars/069a79f444e94726a5befca90e38aaf5?size=128
+GET https://crafatar.euphoriadevelopment.uk/renders/head/069a79f444e94726a5befca90e38aaf5?scale=6&amp;overlay
+GET https://crafatar.euphoriadevelopment.uk/skins/069a79f444e94726a5befca90e38aaf5.png</code></pre>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-sliders" aria-hidden="true"></i> Query Parameters</h2>
+          <ul>
+            <li><strong>size</strong>: Avatar output pixels. Defaults to <code>160</code>, allowed range <code>1-512</code>.</li>
+            <li><strong>scale</strong>: Render scale multiplier. Defaults to <code>6</code>, allowed range <code>1-10</code>.</li>
+            <li><strong>overlay</strong>: Enables second-layer overlay. Presence means <code>true</code>.</li>
+            <li><strong>helm</strong>: Legacy alias for <code>overlay</code>.</li>
+            <li><strong>default</strong>: Fallback when source image is unavailable. Accepts:
+              <code>steve</code>, <code>alex</code>, <code>mhf_steve</code>, <code>mhf_alex</code>, UUID, or external <code>http(s)</code> URL (max length <code>2048</code>).</li>
+          </ul>
+          <p>UUIDs can be dashed or non-dashed in requests; usernames are always invalid.</p>
+          <div class="callout"><p>If <code>default</code> is a UUID or URL, Crafatar responds with <code>307</code> redirect to the fallback target.</p></div>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Response Behavior</h2>
+          <ul>
+            <li><strong>200</strong>: PNG returned successfully.</li>
+            <li><strong>304</strong>: ETag matched, or stale cached image is reused during upstream errors.</li>
+            <li><strong>307</strong>: Redirect to fallback from <code>default</code> query.</li>
+            <li><strong>404</strong>: Invalid subpath or no result for some resources without fallback.</li>
+            <li><strong>422</strong>: Invalid UUID/size/scale/default/render type.</li>
+            <li><strong>500/502</strong>: Upstream/server issue without usable fallback image.</li>
+          </ul>
+          <p>Common response headers:</p>
+          <ul>
+            <li><code>ETag</code> for conditional requests.</li>
+            <li><code>Cache-Control: max-age=3600</code> by default.</li>
+            <li><code>Warning</code> on stale/revalidation-failed cached responses.</li>
+            <li><code>X-Storage-Type</code> (<code>cached</code>, <code>downloaded</code>, <code>checked</code>, <code>server error;cached</code>, <code>user error</code>).</li>
+            <li><code>X-Request-ID</code> for support correlation.</li>
+            <li><code>Response-Time</code> in milliseconds.</li>
+            <li><code>Access-Control-Allow-Origin: *</code> for browser usage.</li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-code" aria-hidden="true"></i> Integration Examples</h2>
+          <h3>HTML image</h3>
+          <pre><code>&lt;img
+  src="https://crafatar.euphoriadevelopment.uk/avatars/069a79f444e94726a5befca90e38aaf5?size=96&amp;overlay"
+  alt="Minecraft avatar"
+/&gt;</code></pre>
+          <h3>JavaScript fetch with cache validation</h3>
+          <pre><code>const url = "https://crafatar.euphoriadevelopment.uk/skins/069a79f444e94726a5befca90e38aaf5";
+const res = await fetch(url, { headers: { "If-None-Match": previousEtag } });
+
+if (res.status === 304) {
+  // Keep existing image
+} else if (res.ok) {
+  const nextEtag = res.headers.get("etag");
+  const blob = await res.blob();
+}</code></pre>
+          <h3>Fallback redirect to your own placeholder</h3>
+          <pre><code>https://crafatar.euphoriadevelopment.uk/capes/00000000000000000000000000000000?default=https%3A%2F%2Fcdn.example.com%2Fimg%2Fno-cape.png</code></pre>
+        </article>
+
+        <article class="panel">
+          <div class="doc-actions"><a class="text-link" href="/docs/community/web-apps.html"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Web Apps</a><a class="text-link" href="/docs/community/crafatar-setup.html">Crafatar Setup <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="docs-footer"><div class="docs-footer-inner"><span>&copy; Euphoria Development</span><nav><a href="/docs/">Docs Home</a><a href="/legal/terms-and-conditions.html">Site Terms</a><a href="/legal/privacy-policy.html">Privacy Policy</a></nav></div></footer>
+</body>
+</html>
