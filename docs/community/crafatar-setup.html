@@ -32,23 +32,58 @@
           <h2><i class="fa-solid fa-rocket" aria-hidden="true"></i> Deployment Options</h2>
           <ul>
             <li><strong>Hosted:</strong> use <code>https://crafatar.euphoriadevelopment.uk</code> directly.</li>
-            <li><strong>Self-hosted:</strong> deploy your own Crafatar instance with Docker or Node.js + Redis.</li>
+            <li><strong>Self-hosted:</strong> deploy with Docker, Docker Compose, Pterodactyl Panel, or Node.js + Redis.</li>
           </ul>
           <div class="callout"><p>For endpoint and parameter reference, use <a href="/docs/community/crafatar-api.html">Crafatar API Docs</a>.</p></div>
         </article>
 
         <article class="panel">
-          <h2><i class="fa-brands fa-docker" aria-hidden="true"></i> Docker Quick Start (Awaiting Testing 23/02/2026)</h2>
-          <p>Recommended for production deployment.</p>
+          <h2><i class="fa-brands fa-docker" aria-hidden="true"></i> Docker Quick Start</h2>
+          <p>Fast single-host deployment with a dedicated Redis container.</p>
           <pre><code>docker network create crafatar
-docker run --net crafatar -d --name redis redis
+docker run --net crafatar -d --name redis redis:7-alpine
 docker run --net crafatar \
   -v crafatar-images:/home/app/crafatar/images \
-  -e REDIS_URL=redis://redis \
+  -e CACHE_BACKEND=redis \
+  -e REDIS_URL=redis://redis:6379 \
+  -e BIND=0.0.0.0 \
+  -e PORT=3000 \
   -e EXTERNAL_URL=https://crafatar.example.com \
   -p 3000:3000 \
-  ghcr.io/&lt;owner&gt;/&lt;repo&gt;:latest</code></pre>
+  docker.io/repgraphics/crafatar:latest</code></pre>
           <p>Service is then available at <code>http://0.0.0.0:3000</code> behind your proxy/domain.</p>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-layer-group" aria-hidden="true"></i> Docker Compose (Recommended)</h2>
+          <p>Uses the repo's maintained <code>docker-compose.yml</code> with Redis health checks and persistent volumes.</p>
+          <pre><code>git clone https://github.com/EuphoriaTheme/crafatar.git
+cd crafatar
+cp .env.example .env
+docker compose up -d
+docker compose logs -f crafatar</code></pre>
+          <p>Windows PowerShell quick start:</p>
+          <pre><code>Copy-Item .env.example .env
+docker compose up -d</code></pre>
+          <p>The compose stack binds Crafatar to <code>3000:3000</code>, mounts <code>crafatar-images</code>, and stores Redis data in <code>redis-data</code>.</p>
+        </article>
+
+        <article class="panel">
+          <h2><i class="fa-solid fa-server" aria-hidden="true"></i> Pterodactyl Panel Installation</h2>
+          <p>Use the official egg from your repository: <a href="https://github.com/EuphoriaTheme/crafatar/tree/master/pterodactyl%20egg">pterodactyl egg/egg-crafatar.json</a>.</p>
+          <ol>
+            <li>In Pterodactyl Admin, import <code>egg-crafatar.json</code> into a nest.</li>
+            <li>Create a new server with image <code>docker.io/repgraphics/crafatar:latest</code>.</li>
+            <li>Set <code>BIND=0.0.0.0</code> and configure <code>EXTERNAL_URL</code> to your public domain.</li>
+            <li>For Redis caching, set <code>CACHE_BACKEND=redis</code> and <code>REDIS_URL=redis://host:6379</code>. If you do not run Redis, set <code>CACHE_BACKEND=memory</code>.</li>
+            <li>Start the server and confirm the console reports <code>Server running on http://</code>.</li>
+          </ol>
+          <pre><code>CACHE_BACKEND=redis
+REDIS_URL=redis://redis.example.internal:6379
+BIND=0.0.0.0
+EXTERNAL_URL=https://crafatar.example.com
+SOURCE_REPO=EuphoriaTheme/crafatar
+SOURCE_REF=master</code></pre>
         </article>
 
         <article class="panel">
@@ -70,7 +105,8 @@ npm start</code></pre>
           <h2><i class="fa-solid fa-sliders" aria-hidden="true"></i> Required Configuration</h2>
           <p>Set these in <code>.env</code>:</p>
           <ul>
-            <li><code>REDIS_URL=redis://host:6379</code> (or <code>rediss://</code> for TLS).</li>
+            <li><code>CACHE_BACKEND=redis</code>, <code>memory</code>, or <code>none</code> (default is <code>redis</code> in <code>.env.example</code>).</li>
+            <li><code>REDIS_URL=redis://host:6379</code> (or <code>rediss://</code> for TLS) when <code>CACHE_BACKEND=redis</code>.</li>
             <li><code>PORT=3000</code>, <code>BIND=0.0.0.0</code>.</li>
             <li><code>EXTERNAL_URL=https://crafatar.example.com</code> for canonical public URL in docs/examples.</li>
             <li><code>CACHE_LOCAL=1200</code> and <code>CACHE_BROWSER=3600</code> control freshness and browser cache lifetime.</li>
